@@ -1,0 +1,381 @@
+-- AgalarSleekUI Library v1.0
+-- Minimal sleek UI framework for Roblox Lua
+
+local AgalarSleekUI = {}
+
+-- Services
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+-- Colors and style
+local Style = {
+    Accent = Color3.fromRGB(0, 204, 255),
+    Background = Color3.fromRGB(20, 20, 30),
+    Header = Color3.fromRGB(10, 10, 20),
+    TextColor = Color3.fromRGB(240, 240, 240),
+    ButtonHover = Color3.fromRGB(10, 180, 230)
+}
+
+-- Utility: create UI element
+local function create(className, properties)
+    local inst = Instance.new(className)
+    for prop, val in pairs(properties) do
+        inst[prop] = val
+    end
+    return inst
+end
+
+-- Animate color tween helper
+local function tweenColor(inst, prop, goal, duration)
+    TweenService:Create(inst, TweenInfo.new(duration or 0.2), {[prop] = goal}):Play()
+end
+
+-- Create main Window
+function AgalarSleekUI:CreateWindow(title)
+    local Window = {}
+
+    -- Main ScreenGui
+    local screenGui = create("ScreenGui", {
+        Name = "AgalarSleekUI",
+        ResetOnSpawn = false,
+        Parent = game:GetService("CoreGui") or game.Players.LocalPlayer:WaitForChild("PlayerGui")
+    })
+
+    -- Main Frame
+    local frame = create("Frame", {
+        Name = "MainFrame",
+        Parent = screenGui,
+        BackgroundColor3 = Style.Background,
+        Size = UDim2.new(0, 400, 0, 350),
+        Position = UDim2.new(0.5, -200, 0.5, -175),
+        ClipsDescendants = true,
+        Active = true,
+        Draggable = true,
+        BorderSizePixel = 0,
+        ZIndex = 10
+    })
+
+    -- Header
+    local header = create("TextLabel", {
+        Parent = frame,
+        BackgroundColor3 = Style.Header,
+        Size = UDim2.new(1, 0, 0, 40),
+        Text = title or "AgalarSleekUI Window",
+        TextColor3 = Style.TextColor,
+        Font = Enum.Font.GothamBold,
+        TextSize = 20,
+        TextXAlignment = Enum.TextXAlignment.Center,
+        BorderSizePixel = 0,
+        ZIndex = 11
+    })
+
+    -- Container for tabs content
+    local contentFrame = create("Frame", {
+        Parent = frame,
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 40),
+        Size = UDim2.new(1, 0, 1, -40),
+        ZIndex = 10
+    })
+
+    -- Tab bar
+    local tabBar = create("Frame", {
+        Parent = frame,
+        BackgroundColor3 = Style.Header,
+        Position = UDim2.new(0, 0, 0, 40),
+        Size = UDim2.new(1, 0, 0, 30),
+        BorderSizePixel = 0,
+        ZIndex = 11
+    })
+
+    local tabButtons = {}
+    local tabs = {}
+    local currentTab = nil
+
+    -- Function to switch tabs
+    local function switchTab(tabName)
+        if currentTab == tabName then return end
+        currentTab = tabName
+        for name, tab in pairs(tabs) do
+            tab.Frame.Visible = (name == tabName)
+            tabButtons[name].BackgroundColor3 = (name == tabName) and Style.Accent or Style.Header
+        end
+    end
+
+    -- Add Tab function
+    function Window:AddTab(name)
+        -- Tab button
+        local btn = create("TextButton", {
+            Parent = tabBar,
+            BackgroundColor3 = Style.Header,
+            BorderSizePixel = 0,
+            Text = name,
+            TextColor3 = Style.TextColor,
+            Font = Enum.Font.Gotham,
+            TextSize = 16,
+            AutoButtonColor = false,
+            ZIndex = 12
+        })
+
+        btn.Size = UDim2.new(0, 100, 1, 0)
+        btn.Position = UDim2.new(0, (#tabButtons) * 100, 0, 0)
+
+        -- Hover effect
+        btn.MouseEnter:Connect(function()
+            if currentTab ~= name then
+                tweenColor(btn, "BackgroundColor3", Style.ButtonHover)
+            end
+        end)
+        btn.MouseLeave:Connect(function()
+            if currentTab ~= name then
+                tweenColor(btn, "BackgroundColor3", Style.Header)
+            end
+        end)
+
+        btn.MouseButton1Click:Connect(function()
+            switchTab(name)
+        end)
+
+        -- Tab content frame
+        local tabFrame = create("ScrollingFrame", {
+            Parent = contentFrame,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 1, 0),
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            ScrollBarThickness = 6,
+            Visible = false
+        })
+
+        local uiListLayout = create("UIListLayout", {Parent = tabFrame, Padding = UDim.new(0, 8)})
+        uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        uiListLayout.Padding = UDim.new(0, 8)
+
+        tabs[name] = {
+            Frame = tabFrame,
+            Layout = uiListLayout
+        }
+        tabButtons[name] = btn
+
+        -- If first tab, select it by default
+        if not currentTab then
+            switchTab(name)
+        end
+
+        -- Return interface to add buttons, toggles etc
+        local tabInterface = {}
+
+        function tabInterface:AddButton(text, callback)
+            local button = create("TextButton", {
+                Parent = tabFrame,
+                BackgroundColor3 = Style.Accent,
+                BorderSizePixel = 0,
+                Text = text,
+                TextColor3 = Color3.new(1,1,1),
+                Font = Enum.Font.GothamBold,
+                TextSize = 18,
+                Size = UDim2.new(1, -20, 0, 40),
+                AutoButtonColor = false
+            })
+
+            -- Hover tween
+            button.MouseEnter:Connect(function()
+                tweenColor(button, "BackgroundColor3", Style.ButtonHover)
+            end)
+            button.MouseLeave:Connect(function()
+                tweenColor(button, "BackgroundColor3", Style.Accent)
+            end)
+
+            button.MouseButton1Click:Connect(function()
+                pcall(callback)
+            end)
+
+            return button
+        end
+
+        function tabInterface:AddToggle(text, default, callback)
+            local toggle = create("Frame", {
+                Parent = tabFrame,
+                BackgroundColor3 = Style.Header,
+                Size = UDim2.new(1, -20, 0, 40),
+                BorderSizePixel = 0
+            })
+
+            local label = create("TextLabel", {
+                Parent = toggle,
+                Text = text,
+                TextColor3 = Style.TextColor,
+                BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham,
+                TextSize = 18,
+                Position = UDim2.new(0, 5, 0, 5),
+                Size = UDim2.new(0.75, 0, 1, 0),
+                TextXAlignment = Enum.TextXAlignment.Left
+            })
+
+            local button = create("TextButton", {
+                Parent = toggle,
+                Size = UDim2.new(0, 50, 0, 25),
+                Position = UDim2.new(1, -55, 0, 7),
+                BackgroundColor3 = default and Style.Accent or Style.Header,
+                BorderSizePixel = 0,
+                Text = "",
+                AutoButtonColor = false
+            })
+
+            local toggled = default
+
+            local function update()
+                button.BackgroundColor3 = toggled and Style.Accent or Style.Header
+                if callback then
+                    pcall(callback, toggled)
+                end
+            end
+            update()
+
+            button.MouseButton1Click:Connect(function()
+                toggled = not toggled
+                update()
+            end)
+
+            return toggle
+        end
+
+        function tabInterface:AddSlider(text, min, max, default, callback)
+            local sliderFrame = create("Frame", {
+                Parent = tabFrame,
+                BackgroundColor3 = Style.Header,
+                Size = UDim2.new(1, -20, 0, 50),
+                BorderSizePixel = 0
+            })
+
+            local label = create("TextLabel", {
+                Parent = sliderFrame,
+                Text = text,
+                TextColor3 = Style.TextColor,
+                BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham,
+                TextSize = 18,
+                Position = UDim2.new(0, 5, 0, 5),
+                Size = UDim2.new(0.5, 0, 0, 20),
+                TextXAlignment = Enum.TextXAlignment.Left
+            })
+
+            local valueLabel = create("TextLabel", {
+                Parent = sliderFrame,
+                Text = tostring(default),
+                TextColor3 = Style.TextColor,
+                BackgroundTransparency = 1,
+                Font = Enum.Font.GothamBold,
+                TextSize = 18,
+                Position = UDim2.new(0.75, 0, 0, 5),
+                Size = UDim2.new(0.25, -5, 0, 20),
+                TextXAlignment = Enum.TextXAlignment.Right
+            })
+
+            local sliderBg = create("Frame", {
+                Parent = sliderFrame,
+                BackgroundColor3 = Style.Background,
+                Position = UDim2.new(0, 5, 0, 30),
+                Size = UDim2.new(1, -10, 0, 12),
+                BorderSizePixel = 0,
+                ClipsDescendants = true
+            })
+
+            local sliderFill = create("Frame", {
+                Parent = sliderBg,
+                BackgroundColor3 = Style.Accent,
+                Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
+                BorderSizePixel = 0
+            })
+
+            local dragging = false
+
+            sliderBg.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = true
+                end
+            end)
+
+            sliderBg.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragging = false
+                end
+            end)
+
+            UserInputService.InputChanged:Connect(function(input)
+                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                    local relativePos = math.clamp(input.Position.X - sliderBg.AbsolutePosition.X, 0, sliderBg.AbsoluteSize.X)
+                    local percent = relativePos / sliderBg.AbsoluteSize.X
+                    local value = math.floor(min + (max - min) * percent)
+                    sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                    valueLabel.Text = tostring(value)
+                    if callback then
+                        pcall(callback, value)
+                    end
+                end
+            end)
+
+            return sliderFrame
+        end
+
+        return tabInterface
+    end
+
+    -- Notification function
+    function Window:Notify(title, text, duration)
+        duration = duration or 4
+
+        local notif = create("Frame", {
+            Parent = screenGui,
+            Size = UDim2.new(0, 300, 0, 70),
+            Position = UDim2.new(0.5, -150, 1, -80),
+            BackgroundColor3 = Style.Accent,
+            BorderSizePixel = 0,
+            ZIndex = 20,
+            ClipsDescendants = true
+        })
+
+        local titleLabel = create("TextLabel", {
+            Parent = notif,
+            Text = title,
+            TextColor3 = Color3.new(1,1,1),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.GothamBold,
+            TextSize = 22,
+            Position = UDim2.new(0, 10, 0, 5),
+            Size = UDim2.new(1, -20, 0, 25),
+            ZIndex = 21,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
+
+        local textLabel = create("TextLabel", {
+            Parent = notif,
+            Text = text,
+            TextColor3 = Color3.new(1,1,1),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.Gotham,
+            TextSize = 18,
+            Position = UDim2.new(0, 10, 0, 30),
+            Size = UDim2.new(1, -20, 0, 35),
+            ZIndex = 21,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left
+        })
+
+        -- Tween in
+        notif.Position = UDim2.new(0.5, -150, 1, 0)
+        tweenColor(notif, "BackgroundColor3", Style.Accent, 0)
+        TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -150, 1, -80)}):Play()
+
+        -- Tween out after duration
+        delay(duration, function()
+            TweenService:Create(notif, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -150, 1, 0)}):Play()
+            wait(0.5)
+            notif:Destroy()
+        end)
+    end
+
+    return Window
+end
+
+return AgalarSleekUI
