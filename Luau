@@ -1,0 +1,24 @@
+-- Load the UI library
+local AgalarSleekUI = require(path_to_your_library_file)
+
+-- Create your window
+local Window = AgalarSleekUI:CreateWindow("Agalar Hub")
+
+-- Add a tab
+local ScriptsTab = Window:AddTab("Scripts")
+
+-- Add a button inside that tab
+ScriptsTab:AddButton("Say Hello", function()
+    print("Hello from Agalar Hub!")
+    Window:Notify("Hey!", "You pressed the button!", 3)
+end)
+
+-- Add a toggle example
+ScriptsTab:AddToggle("Enable Feature", false, function(state)
+    print("Toggle is now", state)
+end)
+
+-- Add a slider example
+ScriptsTab:AddSlider("Volume", 0, 100, 50, function(value)
+    print("Volume set to", value)
+end)
